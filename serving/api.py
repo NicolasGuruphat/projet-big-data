@@ -9,15 +9,15 @@ def read_root():
 
 @app.post("/predict")
 def predict(data: fastapi.UploadFile = fastapi.File(...)):
-    return {"filename": data.filename}
+    return model.predict(data)
 
 @app.post("/feedback")
 def feedback(data: bool):
     return data
 
-if __name__ == "__main__":
-    open_pickle('./artifacts/model.pkl')
-
-def open_pickle(path):
-    with open(path, 'rb') as f:
+def open_pickle():
+    with open('../artifacts/best_model.pkl', 'rb') as f:
         return pickle.load(f)
+
+if __name__ == "__main__":
+    model = open_pickle()
