@@ -93,6 +93,13 @@ def open_pickle():
     with open('../artifacts/best_model.pkl', 'rb') as f:
         return pickle.load(f)
 
+def check_for_new_pickle():
+    df1 = pd.read_csv('../data/prod_data.csv', sep=';')
+    if len(df1) > 3:
+        MergeData()
+        doTraining()
+        open_pickle()
+
 def SaveFeedBackData(image_vector,classe):
     with open('../data/prod_data.csv', 'a') as f:
         f.write(image_vector+";"+classe+"\n")
