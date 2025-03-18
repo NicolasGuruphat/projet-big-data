@@ -2,6 +2,7 @@ from fastapi import FastAPI, UploadFile, File
 from fastapi.encoders import jsonable_encoder
 from fastapi.responses import JSONResponse
 from pickle import *
+from utils import *
 
 app = FastAPI()
 
@@ -18,10 +19,6 @@ def predict(data: UploadFile = File(...)):
 @app.post("/feedback")
 def feedback(data: bool):
     return data
-
-def open_pickle():
-    with open('../artifacts/best_model.pkl', 'rb') as f:
-        return pickle.load(f)
 
 if __name__ == "__main__":
     model = open_pickle()
