@@ -11,6 +11,10 @@ app = FastAPI()
 def read_root():
     return {"Routes: /predict, /feedback"}
 
+@app.get("/classes")
+def get_classes():
+    return {"classes": ["dog", "cat"]}
+
 @app.post("/predict")
 def predict(data: UploadFile = File(...)):
     #json_compatible_item_data = jsonable_encoder(model.predict(data))
@@ -21,7 +25,7 @@ def predict(data: UploadFile = File(...)):
 
 class FeedBackModel(BaseModel):
     id_image: str
-    data: bool
+    data: str
 
 @app.post("/feedback")
 def feedback(feedback: FeedBackModel):
