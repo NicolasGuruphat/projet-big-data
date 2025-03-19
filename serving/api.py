@@ -4,11 +4,14 @@ from fastapi.responses import JSONResponse
 from pickle import *
 from utils import *
 from uuid import uuid4
+import torch
 
 from pydantic import BaseModel
 
 from PIL import Image
 from torchvision import transforms
+
+import io
 
 current_prediction = {}
 global model
@@ -24,8 +27,13 @@ def get_classes():
     return {"classes": ["dog", "cat"]}
 
 @app.post("/predict")
-def predict(data: UploadFile = File(...)):
-    image_pillow = Image.frombytes(data.file)
+async def predict(data: UploadFile = File(...)):
+    model = open_pickle()
+    if model is None:
+        return JSONResponse(content={"error": "Model not found"}, status_code=404)
+
+    image_bytes = await data.read()
+    image_pillow = Image.open(io.BytesIO(image_bytes)).convert("RGB")
     data_transform = transforms.Compose([
         # Resize the images to 64x64
         transforms.Resize(size=(IMAGE_SIZE, IMAGE_SIZE)),
@@ -36,9 +44,13 @@ def predict(data: UploadFile = File(...)):
     
     transformed_image = data_transform(image_pillow)
 
-    prediction=model.predict(transformed_image)
+    flattened_image_tensor = torch.flatten(transformed_image)
+    print(flattened_image_tensor)
+    print(flattened_image_tensor.shape)
+    prediction=model.predict([flattened_image_tensor])
+
     id=uuid4()
-    json_compatible_item_data = jsonable_encoder({"id": id, "prediction": prediction})
+    json_compatible_item_data = jsonable_encoder({"id": id, "prediction": prediction[0]})
 
     current_prediction[id] = (prediction, transformed_image)
 
