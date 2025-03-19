@@ -2,6 +2,7 @@ import pickle
 import time
 import numpy as np
 import pandas as pd
+from io import StringIO
 
 from sklearn.feature_selection import SelectFromModel
 from sklearn.pipeline import FeatureUnion, Pipeline
@@ -20,148 +21,56 @@ from sklearn.neural_network import MLPClassifier
 from xgboost import XGBClassifier
 from sklearn.metrics import balanced_accuracy_score
 
+IMAGE_SIZE = 64
+
 clfs = {
-        'NBS':GaussianNB(),
-        'CART': tree.DecisionTreeClassifier(criterion="gini",random_state=1),
-        'IDE3': tree.DecisionTreeClassifier(criterion="entropy",random_state=1),
-        'DS': tree.DecisionTreeClassifier(max_depth=1,random_state=1),
-        'MLP': MLPClassifier(hidden_layer_sizes=(20,10),random_state=1),
-        'KNN': KNeighborsClassifier(n_neighbors=5,n_jobs=-1),
-        'BAGGING': BaggingClassifier(n_estimators=200,random_state=1),
-        'ADA_BOOST': AdaBoostClassifier(n_estimators=200,random_state=1),
         'RF': RandomForestClassifier(n_estimators=200, random_state=1),
-        'XGBOOST': XGBClassifier(n_estimators=200,random_state=1)
     }
 
 param_grid = {
-    'NBS' : {
-        'var_smoosing' : [1e-9]
-    },
-    'ADA_BOOST' : {
-        'n_estimators': [100, 200, 500]
-    },
     'RF' : {
         'n_estimators': [100, 200, 500],
         'criterion': ['gini', 'entropy']
     },
-    'CART': {
-        'max_depth': [1, 2, 3, 4, 5, None], 
-        'min_samples_split': [2, 5, 10],
-        'min_samples_leaf': [1, 2, 4]
-    },
-    'ID3': {
-        'max_depth': [1, 2, 3, 4, 5, None], 
-        'min_samples_split': [2, 5, 10], 
-        'min_samples_leaf': [1, 2, 4]
-    },
-    'KNN' : {
-        'n_neighbors': [1, 3, 5, 10]
-    },
-    'MLP' : {
-        'hidden_layer_sizes': [(100,), (200,), (100, 100)],
-        'activation': ['relu', 'tanh', 'logistic']
-    },
-    'BAGGING' : {
-        'n_estimators': [100, 200, 500]
-    },
-    'XGBOOST': {
-        'n_estimators': [100, 200, 500],  
-        'max_depth': [3, 5, 7, 10],  
-        'learning_rate': [0.01, 0.05, 0.1, 0.2],  
-        'subsample': [0.6, 0.8, 1.0],  
-        'colsample_bytree': [0.6, 0.8, 1.0],  
-        'gamma': [0, 0.1, 0.2, 0.5],  
-        'lambda': [0, 1, 10],  
-        'alpha': [0, 1, 10]  
-    },
 }
 
 ListAlgo = {
-    'NBS':GaussianNB(),
-    'CART': tree.DecisionTreeClassifier(criterion="gini",random_state=1),
-    'IDE3': tree.DecisionTreeClassifier(criterion="entropy",random_state=1),
-    'DS': tree.DecisionTreeClassifier(random_state=1),
-    'MLP': MLPClassifier(random_state=1),
-    'KNN': KNeighborsClassifier(n_jobs=-1),
-    'BAGGING': BaggingClassifier(random_state=1),
-    'ADA_BOOST': AdaBoostClassifier(random_state=1),
     'RF': RandomForestClassifier(random_state=1),
-    'XGBOOST': XGBClassifier(random_state=1)
 }
 
 def open_pickle():
-    with open('../artifacts/best_model.pkl', 'rb') as f:
+    with open('/artifacts/best_model.pkl', 'rb') as f:
         return pickle.load(f)
 
 def check_for_new_pickle():
-    df1 = pd.read_csv('../data/prod_data.csv', sep=';')
+    df1 = pd.read_csv('/data/prod_data.csv', sep=';')
     if len(df1) > 3:
         MergeData()
         doTraining()
         open_pickle()
 
 def SaveFeedBackData(image_vector,classe):
-    with open('../data/prod_data.csv', 'a') as f:
+    with open('/data/prod_data.csv', 'a') as f:
         f.write(image_vector+";"+classe+"\n")
 
 def MergeData():
-    df1 = pd.read_csv('../data/prod_data.csv', sep=';')
-    df2 = pd.read_csv('../data/ref_data.csv', sep=';')
+    df1 = pd.read_csv('/data/prod_data.csv', sep=';')
+    df2 = pd.read_csv('/data/ref_data.csv', sep=';')
     df = pd.concat([df1, df2], ignore_index=True)
-    df.to_csv('../data/ref_data.csv', sep=';', index=False)
-    open('../data/prod_data.csv', 'w').close()
+    df.to_csv('/data/ref_data.csv', sep=';', index=False)
+    open('/data/prod_data.csv', 'w').close()
 
-def Apprentissage(X,y) :
-    scaler = StandardScaler()
-    X_norm = scaler.fit_transform(X)
-    pca = PCA(n_components=3)
-    X_pca = pca.fit_transform(X)
-    features = []
+def Apprentissage(df) :
+    bg = BaggingClassifier(n_jobs=-1)
+    np_array = df.to_numpy()
+    variables = np_array[:, :-1]
+    status = np_array[:, -1]
 
-    print("--------------------------------------------------------------")
-    print("On récupere le meilleur classifieur pour chaque type de donnée")
-    max_base_data = classifier_choose(X,y)
-    print("Pour les données non traitées :", max_base_data[0])
-    max_norm = classifier_choose(X_norm,y)
-    print("Pour les données normalisées :", max_norm[0])
-    max_pca = classifier_choose(X_pca,y)
-    print("Pour les données PCA :", max_pca[0])
-    
-    print("--------------------------------------------------------------")
-    print("On choisi le meilleur classifieur")
-    bestAlgo = ""
-    X_update = []
-    strategy = ""
-    if (max_base_data[1] > max_norm[1] and max_base_data[1] > max_pca[1]) :
-        bestAlgo = max_base_data[0]
-        X_update = X   
-        strategy = "BASE"
-    if (max_pca[1] > max_norm[1] and max_pca[1] > max_base_data[1]) :
-        bestAlgo = max_pca[0]
-        X_update = X_pca
-        strategy = "PCA"
-    if(max_norm[1] > max_base_data[1] and max_norm[1] > max_pca[1]) :
-        bestAlgo = max_norm[0]
-        X_update = X_norm 
-        strategy = "NORM"
-    print("Le meilleur est :", bestAlgo)
-    
-    print("--------------------------------------------------------------")
-    features,indice = bestVariable(bestAlgo, X_update, y)
-    print("On a choisi", indice, "variable(s)")
-    print("--------------------------------------------------------------")
-    print("Strategie utilisé : ", strategy)
-    algo =  ListAlgo[bestAlgo]
-    combined_scorer = make_scorer(custom_scorer ,greater_is_better=True)
-    grid_search = GridSearchCV(estimator=algo,param_grid=param_grid[bestAlgo],scoring=combined_scorer, cv=5) 
-    creation_pipeline(X,y,grid_search,strategy,indice)
-
+    creation_pipeline(variables, status, bg, "NORM", pow(IMAGE_SIZE, 2) * 3)
 
 def doTraining():
-    df = pd.read_csv('ref_data.csv', sep=';')
-    X = df.drop(columns=['Classe']).values 
-    y = df['Classe'].values
-    Apprentissage(X,y)
+    df = pd.read_csv('/data/ref_data.csv', sep=';')
+    Apprentissage(df)
 
 def run_classifier(clfs,X,Y):
     kf = KFold(n_splits=10, shuffle=True, random_state=0)
@@ -219,7 +128,7 @@ def creation_pipeline(X, y, model, strategy, nb_selected_features):
 
     P.fit(X, y)
 
-    with open('../artifacts/best_model.pkl', 'wb') as f:
+    with open('/artifacts/best_model.pkl', 'wb') as f:
         pickle.dump(P, f)
 
     print("Pipeline sauvegardé sous 'best_model.pkl'")

@@ -1,6 +1,7 @@
 FROM python:3.10-slim 
 WORKDIR /app 
-COPY api.py . 
+COPY api.py .
+COPY utils.py . 
 COPY requirements.txt .
 RUN pip3 install --upgrade pip 
 RUN pip3 install -r requirements.txt

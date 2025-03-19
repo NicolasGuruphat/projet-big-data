@@ -2,3 +2,9 @@ uvicorn
 fastapi
 scikit-learn
 python-multipart
+numpy
+pandas
+xgboost
+pillow
+torch
+torchvision
