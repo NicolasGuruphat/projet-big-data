@@ -13,8 +13,10 @@ from torchvision import transforms
 
 import io
 
-current_prediction = {}
+global current_prediction
 global model
+
+current_prediction = {}
 
 app = FastAPI()
 
@@ -50,9 +52,9 @@ async def predict(data: UploadFile = File(...)):
     prediction=model.predict([flattened_image_tensor])
 
     id=uuid4()
-    json_compatible_item_data = jsonable_encoder({"id": id, "prediction": prediction[0]})
+    json_compatible_item_data = jsonable_encoder({"id": id, "prediction": 'dog' if prediction[0] == 0 else 'cat'})
 
-    current_prediction[id] = (prediction, transformed_image)
+    current_prediction[str(id)] = (prediction, transformed_image)
 
     return JSONResponse(content=json_compatible_item_data)
 
@@ -63,7 +65,8 @@ class FeedBackModel(BaseModel):
 @app.post("/feedback")
 def feedback(feedback: FeedBackModel):
     print(f"Feedback received for image {feedback.id_image}: {feedback.data}")
-    SaveFeedBackData(current_prediction[feedback.id_image][1], feedback.data)
+    # On stocke dans le fichier de feedback, le vecteur d'image, la classe prédite initialement et la classe de feedback
+    SaveFeedBackData(current_prediction[feedback.id_image][1], current_prediction[feedback.id_image][0], 0.0 if feedback.data == 'dog' else 1.0)
     check_for_new_pickle()
 
 @app.post("/retrain")

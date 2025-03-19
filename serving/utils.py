@@ -49,9 +49,9 @@ def check_for_new_pickle():
         doTraining()
         open_pickle()
 
-def SaveFeedBackData(image_vector,classe):
+def SaveFeedBackData(image_vector, prediction_class, feedback_class):
     with open('/data/prod_data.csv', 'a') as f:
-        f.write(image_vector+";"+classe+"\n")
+        f.write(";".join([str(v) for v in image_vector] + [str(prediction_class), str(feedback_class)]) + "\n")
 
 def MergeData():
     df1 = pd.read_csv('/data/prod_data.csv', sep=';')
