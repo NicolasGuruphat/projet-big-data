@@ -18,7 +18,12 @@ global model
 
 current_prediction = {}
 
-app = FastAPI()
+def do_retrain():
+    print("Début de l'entrainement")
+    doTraining()
+    model = open_pickle()
+
+app = FastAPI(on_startup=[do_retrain])
 
 @app.get("/")
 def read_root():
@@ -71,7 +76,5 @@ def feedback(feedback: FeedBackModel):
 
 @app.post("/retrain")
 def retrain():
-    print("Début de l'entrainement")
-    doTraining()
-    model = open_pickle()
+    do_retrain()
     return {"message": "Model retrained"}
