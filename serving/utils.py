@@ -21,6 +21,8 @@ from sklearn.neural_network import MLPClassifier
 from xgboost import XGBClassifier
 from sklearn.metrics import balanced_accuracy_score
 
+import os.path
+
 IMAGE_SIZE = 64
 
 clfs = {
@@ -45,17 +47,25 @@ def open_pickle():
 def check_for_new_pickle():
     df1 = pd.read_csv('/data/prod_data.csv', sep=';')
     if len(df1) > 3:
-        MergeData()
+        print("Re-entrainement du modèle automatique")
+        MergeDataIfExists()
         doTraining()
-        open_pickle()
+        return open_pickle()
 
 def SaveFeedBackData(image_vector, prediction_class, feedback_class):
+    flat_vector = image_vector.flatten().tolist()
+    
     with open('/data/prod_data.csv', 'a') as f:
-        f.write(";".join([str(v) for v in image_vector] + [str(prediction_class), str(feedback_class)]) + "\n")
+        line = ";".join(map(str, flat_vector)) + ";" + str(prediction_class) + ";" + str(feedback_class) + "\n"
+        f.write(line)
 
-def MergeData():
+def MergeDataIfExists():
+    if os.path.isfile('/data/ref_data.csv') == False or os.path.isfile('/data/prod_data.csv') == False:
+        return
     df1 = pd.read_csv('/data/prod_data.csv', sep=';')
+    df1 = df1.drop(df1.columns[1], axis=1)
     df2 = pd.read_csv('/data/ref_data.csv', sep=';')
+    df1.columns = df2.columns
     df = pd.concat([df1, df2], ignore_index=True)
     df.to_csv('/data/ref_data.csv', sep=';', index=False)
     open('/data/prod_data.csv', 'w').close()

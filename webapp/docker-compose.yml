@@ -1,5 +1,3 @@
-version: '3.8' 
-
 networks: 
   serving_prod_net:
     external: true

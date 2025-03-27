@@ -20,6 +20,7 @@ current_prediction = {}
 
 def do_retrain():
     print("Début de l'entrainement")
+    MergeDataIfExists()
     doTraining()
     model = open_pickle()
 
@@ -59,7 +60,7 @@ async def predict(data: UploadFile = File(...)):
     id=uuid4()
     json_compatible_item_data = jsonable_encoder({"id": id, "prediction": 'dog' if prediction[0] == 0 else 'cat'})
 
-    current_prediction[str(id)] = (prediction, transformed_image)
+    current_prediction[str(id)] = (prediction[0], transformed_image)
 
     return JSONResponse(content=json_compatible_item_data)
 
@@ -70,9 +71,21 @@ class FeedBackModel(BaseModel):
 @app.post("/feedback")
 def feedback(feedback: FeedBackModel):
     print(f"Feedback received for image {feedback.id_image}: {feedback.data}")
-    # On stocke dans le fichier de feedback, le vecteur d'image, la classe prédite initialement et la classe de feedback
-    SaveFeedBackData(current_prediction[feedback.id_image][1], current_prediction[feedback.id_image][0], 0.0 if feedback.data == 'dog' else 1.0)
-    check_for_new_pickle()
+    try:
+        SaveFeedBackData(
+            current_prediction[feedback.id_image][1], 
+            current_prediction[feedback.id_image][0], 
+            0.0 if feedback.data == 'dog' else 1.0
+        )
+        result = check_for_new_pickle()
+        if result is not None:
+            model = result
+        return {"message": "Feedback saved successfully"}
+    except KeyError:
+        return JSONResponse(
+            content={"error": f"Image ID {feedback.id_image} not found in current predictions"},
+            status_code=404
+        )
 
 @app.post("/retrain")
 def retrain():
